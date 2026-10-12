@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { calculateFloorTile } from './utils/calculator';
+import { calculateFloorTile, calculateBathroomWalls } from './utils/calculator';
 import { useProjects } from './hooks/useProjects';
 import { CalculationResult, OrderProject } from './types/index';
 import { ProjectsTable } from './components/ProjectsTable';
@@ -41,19 +41,37 @@ export default function App() {
     const dWidth = Number(doorWidth);
     const dHeight = Number(doorHeight);
 
-    if (width > 0 && length > 0 && tWidth > 0 && tLength > 0 && price > 0 && miter >= 0) {
-      return calculateFloorTile({
-        calculationType,
-        room: { width, length, height },
-        tile: { width: tWidth, length: tLength },
-        pricePerMeter: price,
-        groutType,
-        miterCutsLength: miter,
-        doorWidth: dWidth,
-        doorHeight: dHeight
-      });
+    // Валидация для пола
+    if (width <= 0 || length <= 0 || tWidth <= 0 || tLength <= 0 || price <= 0 || miter < 0) {
+      return null;
     }
-    return null;
+
+    // Для стен обязательно высота
+    if (calculationType === 'bathroom_walls' && (height <= 0 || dWidth < 0 || dHeight < 0)) {
+      return null;
+    }
+
+    return calculationType === 'floor'
+      ? calculateFloorTile({
+          calculationType,
+          room: { width, length, height },
+          tile: { width: tWidth, length: tLength },
+          pricePerMeter: price,
+          groutType,
+          miterCutsLength: miter,
+          doorWidth: dWidth,
+          doorHeight: dHeight
+        })
+      : calculateBathroomWalls({
+          calculationType,
+          room: { width, length, height },
+          tile: { width: tWidth, length: tLength },
+          pricePerMeter: price,
+          groutType,
+          miterCutsLength: miter,
+          doorWidth: dWidth,
+          doorHeight: dHeight
+        });
   };
 
   const handleShowEstimate = () => {
@@ -63,12 +81,16 @@ export default function App() {
   };
 
   const handleSaveProject = async () => {
-    const calcData = handleCalculate();
     if (!address.trim() || !clientName.trim()) {
       alert('Введите адрес и имя клиента!');
       return;
     }
-    if (!calcData) return;
+
+    const calcData = handleCalculate();
+    if (!calcData) {
+      alert('Заполните поля корректными числами!');
+      return;
+    }
 
     await addProject({
       address,
@@ -92,7 +114,7 @@ export default function App() {
     setResult(null);
   };
 
-    const handleExportToTxt = async (p: OrderProject) => {
+  const handleExportToExcel = async (p: OrderProject) => {
     await exportProjectToExcel(p);
   };
 
@@ -153,7 +175,7 @@ export default function App() {
         filteredProjects={filteredProjects}
         updateProjectStatus={updateProjectStatus}
         deleteProject={deleteProject}
-        handleExportToTxt={handleExportToTxt}
+        handleExportToTxt={handleExportToExcel}
       />
 
     </div>
